@@ -1,0 +1,41 @@
+#! /usr/bin/env python
+
+if __name__ == '__main__':
+    import os
+    import argparse
+
+    from os.path import exists as pexists
+
+    parser = argparse.ArgumentParser(description="Get all items that can make the path specified by '-p' existent.")
+    parser.add_argument('path',
+                        metavar='path',
+                        help="Give a path that contains a placeholder {}. The program will check all items under "
+                             "the parent path which is before the placeholder (For example: If the path is "
+                             "/home/{}/test, the parent path is /home.). If any item makes the path existent, the "
+                             "program will record it, and we regard it as a valid item.")
+    parser.add_argument('-o', '--output',
+                        metavar='output_file',
+                        required=True,
+                        dest='output_file',
+                        help="a file used to store valid items")
+    parser.add_argument('-w', '--whole',
+                        action='store_true',
+                        help="The program only records valid items under the parent path by default. But if the "
+                             "option given, valid whole paths will be recorded.")
+    args = parser.parse_args()
+
+    # get par_path
+    path_split = args.path.split('{}')
+    assert len(path_split) == 2, "The path must have and only have one placeholder {}"
+    par_path = '.' if path_split[0] == '' else path_split[0]
+
+    # get valid items
+    valid_items = [i for i in os.listdir(par_path) if pexists(args.path.format(i))]
+    valid_items.sort()
+    if args.whole:
+        valid_items = [args.path.format(i) for i in valid_items]
+    valid_items = '\n'.join(valid_items)
+
+    # record to output_file
+    with open(args.output_file, 'w+') as wf:
+        wf.write(valid_items)
