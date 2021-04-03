@@ -1,6 +1,7 @@
 import numpy as np
 
 from ..triangular_mesh import get_n_ring_neighbor, average_gradient, mesh2graph
+from ..triangular_mesh import remove_edge_by_vtx
 from ...io.io import GiftiReader, CiftiReader, save2cifti, save2nifti
 
 
@@ -59,3 +60,21 @@ def test_mesh2graph():
         labeled_data[vtx] = label + 1
 
     save2nifti(r'E:\tmp\face-avg_community_thr0.4.nii.gz', labeled_data)
+
+
+def test_remove_edge_by_vtx():
+    faces = np.array([
+        [0, 1, 2],
+        [0, 2, 3],
+        [2, 3, 4]])
+
+    # testing without adding collapsed face
+    faces1 = remove_edge_by_vtx(faces, [4])
+    assert np.all(faces1 == faces[:2])
+
+    # testing with adding collapsed face
+    faces2 = remove_edge_by_vtx(faces, [3])
+    assert np.all(faces2 == np.array([[0, 1, 2], [2, 4, 4]]))
+
+    faces3 = remove_edge_by_vtx(faces, [0, 4])
+    assert np.all(faces3 == np.array([[1, 2, 2], [2, 3, 3]]))

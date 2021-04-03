@@ -374,3 +374,47 @@ def label_edge_detection(data, faces, edge_type="inner", neighbors=None):
         return inner_data, outer_data
     else:
         raise ValueError("The argument 'edge_type' must be one of the (inner, outer, both, split)")
+
+
+def remove_edge_by_vtx(faces, vertices):
+    """Remove edges corresponded to the vertices.
+    Note: Presume that 'c' is one of the vertex whose corresponding edges will
+    be removed, while 'a' and 'b' are not. Meanwhile, edge 'ab' only exists in
+    the face (a, b, c). In order to keep the edge 'ab', a collapsed face
+    (a, b, b) will be added to the end of 'faces' array.
+
+    Args:
+        faces (ndarray): 2D array with shape (n_triangles, 3)
+        vtx_indices (array-like): a collection of vertex indices.
+    Return:
+        faces_clear (ndarray): 2D array with shape (n_triangles, 3)
+    """
+    import numpy as np
+
+    include_vtx_arr = np.isin(faces, vertices)
+    include_vtx_vec = np.any(include_vtx_arr, axis=1)
+    faces_clear = faces[~include_vtx_vec]
+    for idx, include_vtx_flag in enumerate(include_vtx_vec):
+        if not include_vtx_flag:
+            continue
+        include_vtx_face = include_vtx_arr[idx]
+        if np.sum(include_vtx_face) != 1:
+            continue
+        nodes = faces[idx][~include_vtx_face]
+        if nodes[0] == nodes[1]:
+            continue
+        include_nodes_arr = np.isin(faces_clear, nodes)
+        include_nodes_flag = False
+        for idx1, include_nodes_face in enumerate(include_nodes_arr):
+            if np.sum(include_nodes_face) < 2:
+                continue
+            nodes_tmp = faces_clear[idx1][include_nodes_face]
+            if len(set(nodes_tmp)) > 1:
+                include_nodes_flag = True
+                break
+        if not include_nodes_flag:
+            face_collapsed = [nodes[0], nodes[1], nodes[1]]
+            faces_clear = np.append(faces_clear, [face_collapsed], axis=0)
+            print(f"In order to keep the edge {nodes}, a collapsed face "
+                  f"{face_collapsed} is added to the end of 'faces' array.")
+    return faces_clear
