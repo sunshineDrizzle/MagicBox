@@ -35,7 +35,7 @@ def polyfit_plot(x, y, deg, scoring='r', scatter_plot=True,
     # scoring
     y_pred = polynomial(x)
     if scoring == 'r':
-        score = pearsonr(y, y_pred)[0]
+        score = pearsonr(y, y_pred)
     elif scoring == 'r2_score':
         score = r2_score(y, y_pred)
     else:
