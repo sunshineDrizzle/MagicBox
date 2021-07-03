@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def show_bar_value(rects, val_fmt=''):
+def show_bar_value(rects, val_fmt='', ax=None):
     """
     show bars' value on the figure automatically
     Reference: https://stackoverflow.com/questions/14270391/python-matplotlib-multiple-bars
@@ -12,14 +12,20 @@ def show_bar_value(rects, val_fmt=''):
         bars in the matplotlib ax
     :param val_fmt: str
         value format, used to control the value's visualization format
+    :param ax:
+        axis of current plot
     """
+    if ax is None:
+        ax = plt.gca()
     for rect in rects:
         value = rect.get_height()
         label = '{0:{1}}'.format(value, val_fmt)
         if value < 0:
-            plt.text(rect.get_x() + rect.get_width() / 2., value, label, ha='center', va='top')
+            ax.text(rect.get_x() + rect.get_width() / 2.,
+                    value, label, ha='center', va='top')
         else:
-            plt.text(rect.get_x()+rect.get_width()/2., value, label, ha='center', va='bottom')
+            ax.text(rect.get_x() + rect.get_width() / 2.,
+                    value, label, ha='center', va='bottom')
 
 
 def auto_bar_width(x, item_num=1):
@@ -155,12 +161,12 @@ class VlineMoverPlotter(object):
         :return:
         """
         if self.axes.ndim == 1:
-            if self.axes_twin[idx] is 0:
+            if self.axes_twin[idx] == 0:
                 self.vline_movers[idx] = VlineMover(self.axes[idx].axvline(vline_idx), x_round)
             else:
                 self.vline_movers[idx] = VlineMover(self.axes_twin[idx].axvline(vline_idx), x_round)
         elif self.axes.ndim == 2:
-            if self.axes_twin[r_idx, c_idx] is 0:
+            if self.axes_twin[r_idx, c_idx] == 0:
                 self.vline_movers[r_idx, c_idx] = VlineMover(self.axes[r_idx, c_idx].axvline(vline_idx), x_round)
             else:
                 self.vline_movers[r_idx, c_idx] = VlineMover(self.axes_twin[r_idx, c_idx].axvline(vline_idx), x_round)
