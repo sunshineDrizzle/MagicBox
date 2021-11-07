@@ -81,6 +81,494 @@ def imshow(X, xlabel='', ylabel='', cmap=None, cbar_label=None,
         plt.savefig(output)
 
 
+def check_format_y_bar_line(y):
+    """
+    检查和整理用于画bar或line图的y数据
+    最后返回被整理成标准格式的y，即a list of 2D arrays
+
+    Args:
+        y (ndarray | list): 画bar或line图用的y数据
+            必须是1/2D的array或是一列表的1/2D的array
+            如果是列表，则把其中的每个array画到不同的ax里
+            所有的1D array会被reshape成只有1行的2D array
+            2D array的不同行是画在同一个ax里的不同item
+    """
+    error_info = 'y must be a 1/2D array or a list of 1/2D arrays'
+    if isinstance(y, np.ndarray):
+        if y.ndim == 1:
+            y = [np.expand_dims(y, 0)]
+        elif y.ndim == 2:
+            y = [y]
+        else:
+            raise ValueError(error_info)
+    elif isinstance(y, list):
+        for i, e in enumerate(y):
+            assert isinstance(e, np.ndarray), error_info
+            if e.ndim == 1:
+                y[i] = np.expand_dims(e, 0)
+            elif e.ndim == 2:
+                pass
+            raise ValueError(error_info)
+    else:
+        raise TypeError(error_info)
+
+    return y
+
+
+def check_format_yerr_bar_line(yerr, n_ax, n_items, x_lengths):
+    """
+    检查和整理用于画bar或line图的yerr数据
+    最后返回被整理成标准格式的yerr，详见yerr参数的描述
+
+    Args:
+        yerr (None | ndarray | list): 画bar或line图用的yerr数据
+            如果是None, 则构建元素全是None的2层嵌套列表：
+                第一层的长度为n_ax, 第二层各列表的长度和n_items里的值一一对应
+            如果是array，只能是1D或2D，n_ax必须是1
+                如果是1D array，则n_item必须是1，长度为x_length
+                如果是2D array，形状必须是(n_item, x_length)
+                最终构造成[(n_item, x_length)]
+            如果是列表，则长度为n_ax，其中的元素只能是None, 1/2D array或列表：
+                如果是None，则改造为全是None的列表，长度等于n_item；
+                如果是1D array, 则对应的n_item必须是1，长度为对应的x_length
+                    最终会变形成(1, x_length)
+                如果是2D array, 形状必须是对应的(n_item, x_length)
+                如果是列表，其中的元素只能是None或1D array：
+                    如果是1D array，长度必须是对应的x_length
+        n_ax (int): ax的数量
+        n_items (integers): len(n_items) == n_ax
+            各ax中item的数量
+        x_lengths (integers): len(x_lengths) == n_ax
+            各ax中某个item的数据长度
+    """
+    assert n_ax == len(n_items)
+    assert n_ax == len(x_lengths)
+    error_info = 'yerr does not meet specifications. '\
+        'Please read docstring carefully!'
+    if yerr is None:
+        yerr = [[None] * i for i in n_items]
+    elif isinstance(yerr, np.ndarray):
+        assert n_ax == 1, error_info
+        if yerr.ndim == 1:
+            assert n_items[0] == 1 and len(yerr) == x_lengths[0], error_info
+            yerr = [np.expand_dims(yerr, 0)]
+        elif yerr.ndim == 2:
+            assert yerr.shape == (n_items[0], x_lengths[0]), error_info
+            yerr = [yerr]
+        else:
+            raise ValueError(error_info)
+    elif isinstance(yerr, list):
+        assert n_ax == len(yerr), error_info
+        for i1, e1 in enumerate(yerr):
+            if e1 is None:
+                yerr[i1] = [None] * n_items[i1]
+            elif isinstance(e1, np.ndarray):
+                if e1.ndim == 1:
+                    assert n_items[i1] == 1 and len(e1) == x_lengths[i1],\
+                        error_info
+                    yerr[i1] = np.expand_dims(e1, 0)
+                elif e1.ndim == 2:
+                    assert e1.shape == (n_items[i1], x_lengths[i1]), error_info
+                else:
+                    raise ValueError(error_info)
+            elif isinstance(e1, list):
+                for e2 in e1:
+                    if e2 is None:
+                        pass
+                    elif isinstance(e2, np.ndarray):
+                        assert e2.shape == (x_lengths[i1],), error_info
+                    else:
+                        raise TypeError(error_info)
+            else:
+                raise TypeError(error_info)
+    else:
+        raise TypeError(error_info)
+
+    return yerr
+
+
+def check_format_x_bar_line(x, n_ax, x_lengths):
+    """
+    检查和整理用于画bar或line图的x数据
+    最后返回被整理成标准格式的x，详见x参数的描述
+
+    Args:
+        x (None | 1D array | list): 画bar或line图用的x数据
+            如果是None, 则构建长度为n_ax的列表：
+                各元素是np.arange(x_length)
+            如果是1D array, n_ax必须是1，长度必须是x_length
+                最终构造成[(x_length,)]
+            如果是列表，则长度为n_ax，其中的元素只能是None或1D array：
+                如果是None, 则改成np.arange(x_length)
+                如果是1D array, 长度为对应的x_length
+        n_ax (int): ax的数量
+        x_lengths (integers): len(x_lengths) == n_ax
+            各ax中某个item的数据长度
+    """
+    assert n_ax == len(x_lengths)
+    error_info = 'x does not meet specifications. '\
+        'Please read docstring carefully!'
+    if x is None:
+        x = [np.arange(i) for i in x_lengths]
+    elif isinstance(x, np.ndarray):
+        assert n_ax == 1 and x.shape == (x_lengths[0],), error_info
+        x = [x]
+    elif isinstance(x, list):
+        assert n_ax == len(x), error_info
+        for i1, e1 in enumerate(x):
+            if e1 is None:
+                x[i1] = np.arange(x_lengths[i1])
+            elif isinstance(e1, np.ndarray):
+                assert e1.shape == (x_lengths[i1],), error_info
+            else:
+                raise TypeError(error_info)
+    else:
+        raise TypeError(error_info)
+
+    return x
+
+
+def check_format_item_attr_bar_line(data, n_ax, n_items):
+    """
+    检查和整理用于画bar或line图的时候，指定item属性（label，color等）的数据
+    最后返回被整理成标准格式的数据，详见data参数的描述
+
+    Args:
+        data (None | tuple | list):
+            如果是None, 则构建一个长度为n_ax的列表，每个元素是一个元组，
+                每个元组内的元素是对应n_item数量的None
+            如果是tuple, n_ax必须是1，长度必须是n_item
+                最终构造成[data]
+            如果是list，则长度为n_ax，其中的元素只能是None或tuple：
+                如果是None, 则改造成长度为对应n_item的值全是None元组；
+                如果是tuple, 则长度为对应的n_item。
+        n_ax (int): ax的数量
+        n_items (integers): len(n_items) == n_ax
+            各ax中item的数量
+    """
+    assert n_ax == len(n_items)
+    error_info = 'data does not meet specifications. '\
+        'Please read docstring carefully!'
+    if data is None:
+        data = [(None,) * i for i in n_items]
+    elif isinstance(data, tuple):
+        assert n_ax == 1 and len(data) == n_items[0], error_info
+        data = [data]
+    elif isinstance(data, list):
+        assert n_ax == len(data), error_info
+        for i1, e1 in enumerate(data):
+            if e1 is None:
+                data[i1] = (None,) * n_items[i1]
+            elif isinstance(e1, tuple):
+                assert len(e1) == n_items[i1], error_info
+            else:
+                raise TypeError(error_info)
+    else:
+        raise TypeError(error_info)
+
+    return data
+
+
+def check_format_tick_lim(data, n_ax):
+    """
+    检查和整理在调整ax时的xtick[label], ytick[label], xlim, ylim数据
+    最后返回被整理成标准格式的数据，详见data参数的描述
+
+    Args:
+        data (None | 1D array | tuple | list):
+            如果是None, 1D array或tuple, 则构建一个长度为n_ax的列表, 每个元素都是data
+            如果是list，则长度为n_ax，其中的元素只能是None, 1D array或tuple
+        n_ax (int): ax的数量
+    """
+    error_info = 'data does not meet specifications. '\
+        'Please read docstring carefully!'
+    if data is None or isinstance(data, tuple):
+        data = [data] * n_ax
+    elif isinstance(data, np.ndarray):
+        assert data.ndim == 1, error_info
+        data = [data] * n_ax
+    elif isinstance(data, list):
+        assert n_ax == len(data), error_info
+        for e1 in data:
+            if e1 is None or isinstance(e1, tuple):
+                pass
+            elif isinstance(e1, np.ndarray):
+                assert e1.ndim == 1, error_info
+            else:
+                raise TypeError(error_info)
+    else:
+        raise TypeError(error_info)
+
+    return data
+
+
+def plot_axes(fig, axes, n_ax, xlabel=None, xlim=None, xtick=None, xticklabel=None,
+              rotate_xticklabel=False, ylabel=None, ylim=None, ytick=None, yticklabel=None,
+              title=None, mode='show'):
+    """
+    设置axes的非数据部分
+
+    Args:
+        fig (Figure): matplotlib画布
+        axes (2D array): 其中的值是matplotlib的axis
+        n_ax (int): 被使用的axis数量，以行优先的顺序和axes内容对应
+        xlabel (str | strings, optional): Defaults to None.
+            If None, 什么都不做；
+            If str, 为底部axis添加xlabel
+            If strings, 为各axis添加xlabel
+        xlim (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        xtick (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        xticklabel (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        rotate_xticklabel (bool, optional): Defaults to False.
+        ylabel (str | strings, optional): Defaults to None.
+            If None, 什么都不做；
+            If str, 为左侧axis添加ylabel
+            If strings, 为各axis添加ylabel
+        ylim (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        ytick (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        yticklabel (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        title (str | strings, optional): Defaults to None.
+            If None, 什么都不做；
+            If str, 为顶部中间的axis添加title
+            If strings, 为各axis添加title
+        mode (str, optional): Defaults to 'show'.
+            If 'show', 可视化画布
+            elif 'go on', 返回fig, axes, n_ax给后续加工步骤
+            else, 默认是图片路径，将画布存到硬盘。
+
+    Returns:
+        [type]: [description]
+    """
+    xlim = check_format_tick_lim(xlim, n_ax)
+    xtick = check_format_tick_lim(xtick, n_ax)
+    xticklabel = check_format_tick_lim(xticklabel, n_ax)
+    ylim = check_format_tick_lim(ylim, n_ax)
+    ytick = check_format_tick_lim(ytick, n_ax)
+    yticklabel = check_format_tick_lim(yticklabel, n_ax)
+
+    n_row, n_col = axes.shape
+    assert n_ax <= n_row * n_col
+
+    max_row_idx = int((n_ax - 1) / n_col)
+    for ax_idx in range(n_ax):
+        row_idx = int(ax_idx / n_col)
+        col_idx = ax_idx % n_col
+        ax = axes[row_idx, col_idx]
+
+        if xlabel is None:
+            pass
+        elif isinstance(xlabel, str):
+            if row_idx == max_row_idx:
+                ax.set_xlabel(xlabel)
+        else:
+            ax.set_xlabel(xlabel[ax_idx])
+
+        if ylabel is None:
+            pass
+        elif isinstance(ylabel, str):
+            if col_idx == 0:
+                ax.set_ylabel(ylabel)
+        else:
+            ax.set_ylabel(ylabel[ax_idx])
+
+        if title is None:
+            pass
+        elif isinstance(title, str):
+            if row_idx == 0 and col_idx == int(n_col/2):
+                ax.set_title(title)
+        else:
+            ax.set_title(title[ax_idx])
+
+        if xlim[ax_idx] is not None:
+            ax.set_xlim(*xlim[ax_idx])
+        if xticklabel[ax_idx] is not None:
+            assert len(xtick[ax_idx]) == len(xticklabel[ax_idx])
+            ax.set_xticks(xtick[ax_idx])
+            ax.set_xticklabels(xticklabel[ax_idx])
+
+        if ylim[ax_idx] is not None:
+            ax.set_ylim(*ylim[ax_idx])
+        if yticklabel[ax_idx] is not None:
+            assert len(ytick[ax_idx]) == len(yticklabel[ax_idx])
+            ax.set_yticks(ytick[ax_idx])
+            ax.set_yticklabels(yticklabel[ax_idx])
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        if rotate_xticklabel:
+            plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+                     rotation_mode="anchor")
+
+    fig.tight_layout()
+    if mode == 'show':
+        fig.show()
+    elif mode == 'go on':
+        return fig, axes, n_ax
+    else:
+        fig.savefig(mode)
+
+
+def plot_bar(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None, width=None,
+             label=None, fc=None, ec=None, show_height=None, mode='show', xlabel=None,
+             xticklabel=None, rotate_xticklabel=False, ylabel=None, ylim=None, title=None):
+    """
+    基本上满足单纵轴所有常用bar图的绘制了。
+
+    Args:
+        y (1/2D array | list): 详见check_format_y_bar_line
+        n_row (int, optional): axes行数. Defaults to 1.
+        n_col (int, optional): axes列数. Defaults to 1.
+        figsize (tuple, optional): 画布大小 宽x高. Defaults to None.
+        yerr (1/2D array | list, optional): Defaults to None.
+            详见check_format_yerr_bar_line
+        x (1D array | list, optional): Defaults to None.
+            详见check_format_x_bar_line
+        width (float, optional): bar的宽度. Defaults to None.
+        label (tuple | list, optional): Defaults to None.
+            详见check_format_item_attr_bar_line
+        fc (tuple | list, optional): Defaults to None.
+            详见check_format_item_attr_bar_line
+        ec (tuple | list, optional): Defaults to None.
+            详见check_format_item_attr_bar_line
+        show_height (str, optional): Defaults to None.
+            详见show_bar_value的val_fmt参数说明 
+        mode (str, optional): 详见plot_axes. Defaults to 'show'.
+        xlabel (str | strings, optional): 详见plot_axes. Defaults to None.
+        xticklabel (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        rotate_xticklabel (bool, optional): Defaults to False.
+        ylabel (str | strings, optional): 详见plot_axes. Defaults to None.
+        ylim (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        title (str | strings, optional): 详见plot_axes. Defaults to None.
+    """
+    # check data
+    y = check_format_y_bar_line(y)
+    n_ax = len(y)
+    n_items = [i.shape[0] for i in y]
+    x_lengths = [i.shape[1] for i in y]
+
+    assert n_ax <= n_row * n_col
+
+    yerr = check_format_yerr_bar_line(yerr, n_ax, n_items, x_lengths)
+
+    x = check_format_x_bar_line(x, n_ax, x_lengths)
+
+    label = check_format_item_attr_bar_line(label, n_ax, n_items)
+    fc = check_format_item_attr_bar_line(fc, n_ax, n_items)
+    ec = check_format_item_attr_bar_line(ec, n_ax, n_items)
+
+    # prepare figure and axes
+    fig, axes = plt.subplots(n_row, n_col, figsize=figsize)
+    if n_row == 1 and n_col == 1:
+        axes = np.array([[axes]])
+    elif axes.shape != (n_row, n_col):
+        axes = axes.reshape((n_row, n_col))
+
+    # plot on axes
+    for ax_idx, ax_data in enumerate(y):
+        row_idx = int(ax_idx / n_col)
+        col_idx = ax_idx % n_col
+        ax = axes[row_idx, col_idx]
+        if width is None:
+            width = auto_bar_width(x[ax_idx], n_items[ax_idx])
+        offset = -(n_items[ax_idx] - 1) / 2
+        for item_idx in range(n_items[ax_idx]):
+            rects = ax.bar(
+                x[ax_idx] + width*offset, ax_data[item_idx], width,
+                yerr=yerr[ax_idx][item_idx], label=label[ax_idx][item_idx],
+                fc=fc[ax_idx][item_idx], ec=ec[ax_idx][item_idx])
+            if show_height is not None:
+                show_bar_value(rects, show_height, ax)
+            offset += 1
+        if np.any([i is not None for i in label[ax_idx]]):
+            ax.legend()
+
+    # adjust axes
+    plot_axes(fig, axes, n_ax, xlabel=xlabel, xtick=x, xticklabel=xticklabel,
+              rotate_xticklabel=rotate_xticklabel, ylabel=ylabel, ylim=ylim,
+              title=title, mode=mode)
+
+
+def plot_line(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None,
+              label=None, color=None, mode='show', xlabel=None, xtick=None,
+              xticklabel=None, rotate_xticklabel=False, ylabel=None, ylim=None, title=None):
+    """
+    基本上满足单纵轴所有常用line图的绘制了。
+
+    Args:
+        y (1/2D array | list): 详见check_format_y_bar_line
+        n_row (int, optional): axes行数. Defaults to 1.
+        n_col (int, optional): axes列数. Defaults to 1.
+        figsize (tuple, optional): 画布大小 宽x高. Defaults to None.
+        yerr (1/2D array | list, optional): Defaults to None.
+            详见check_format_yerr_bar_line
+        x (1D array | list, optional): Defaults to None.
+            详见check_format_x_bar_line
+        label (tuple | list, optional): Defaults to None.
+            详见check_format_item_attr_bar_line
+        color (tuple | list, optional): Defaults to None.
+            详见check_format_item_attr_bar_line
+        mode (str, optional): 详见plot_axes. Defaults to 'show'.
+        xlabel (str | strings, optional): 详见plot_axes. Defaults to None.
+        xtick (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        xticklabel (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        rotate_xticklabel (bool, optional): Defaults to False.
+        ylabel (str | strings, optional): 详见plot_axes. Defaults to None.
+        ylim (1D array | tuple | list, optional): Defaults to None.
+            详见check_format_tick_lim
+        title (str | strings, optional): 详见plot_axes. Defaults to None.
+    """
+    # check data
+    y = check_format_y_bar_line(y)
+    n_ax = len(y)
+    n_items = [i.shape[0] for i in y]
+    x_lengths = [i.shape[1] for i in y]
+
+    assert n_ax <= n_row * n_col
+
+    yerr = check_format_yerr_bar_line(yerr, n_ax, n_items, x_lengths)
+
+    x = check_format_x_bar_line(x, n_ax, x_lengths)
+
+    label = check_format_item_attr_bar_line(label, n_ax, n_items)
+    color = check_format_item_attr_bar_line(color, n_ax, n_items)
+
+    # prepare figure and axes
+    fig, axes = plt.subplots(n_row, n_col, figsize=figsize)
+    if n_row == 1 and n_col == 1:
+        axes = np.array([[axes]])
+    elif axes.shape != (n_row, n_col):
+        axes = axes.reshape((n_row, n_col))
+
+    # plot on axes
+    for ax_idx, ax_data in enumerate(y):
+        row_idx = int(ax_idx / n_col)
+        col_idx = ax_idx % n_col
+        ax = axes[row_idx, col_idx]
+        for item_idx in range(n_items[ax_idx]):
+            ax.errorbar(
+                x[ax_idx], ax_data[item_idx], yerr[ax_idx][item_idx],
+                label=label[ax_idx][item_idx], color=color[ax_idx][item_idx])
+        if np.any([i is not None for i in label[ax_idx]]):
+            ax.legend()
+
+    # adjust axes
+    if xtick is None:
+        xtick = x
+    plot_axes(fig, axes, n_ax, xlabel=xlabel, xtick=xtick, xticklabel=xticklabel,
+              rotate_xticklabel=rotate_xticklabel, ylabel=ylabel, ylim=ylim,
+              title=title, mode=mode)
+
+
 class VlineMover(object):
     """
     Move the vertical line when left button is clicked.
