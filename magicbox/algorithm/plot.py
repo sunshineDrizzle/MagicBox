@@ -108,7 +108,8 @@ def check_format_y_bar_line(y):
                 y[i] = np.expand_dims(e, 0)
             elif e.ndim == 2:
                 pass
-            raise ValueError(error_info)
+            else:
+                raise ValueError(error_info)
     else:
         raise TypeError(error_info)
 
@@ -300,6 +301,24 @@ def check_format_tick_lim(data, n_ax):
         raise TypeError(error_info)
 
     return data
+
+
+def prepare_y_bar_line(data, key_groups):
+    """
+    依据key_groups从一个类似字典的数据结构中取出数据，
+    并组织成满足画bar/line的y或yerr的格式
+
+    Args:
+        data (dict-like): key-value pairs
+            各value是array-like的，彼此形状相同
+        key_groups (sequence): 2层嵌套的序列
+            第1层包含的各个子序列就是各组，子序列中的元素就是key
+    """
+    out_data = []
+    for keys in key_groups:
+        arr = [data[k] for k in keys]
+        out_data.append(np.array(arr))
+    return out_data
 
 
 def plot_axes(fig, axes, n_ax, xlabel=None, xlim=None, xtick=None, xticklabel=None,
