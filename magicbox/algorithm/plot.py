@@ -434,8 +434,9 @@ def plot_axes(fig, axes, n_ax, xlabel=None, xlim=None, xtick=None, xticklabel=No
 
 
 def plot_bar(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None, width=None,
-             label=None, fc=None, ec=None, show_height=None, mode='show', xlabel=None,
-             xticklabel=None, rotate_xticklabel=False, ylabel=None, ylim=None, title=None):
+             label=None, color=None, fc_ec_flag=False, fc=None, ec=None, show_height=None,
+             xlabel=None, xticklabel=None, rotate_xticklabel=False, ylabel=None, ylim=None,
+             title=None, mode='show'):
     """
     基本上满足单纵轴所有常用bar图的绘制了。
 
@@ -451,13 +452,18 @@ def plot_bar(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None, width=None,
         width (float, optional): bar的宽度. Defaults to None.
         label (tuple | list, optional): Defaults to None.
             详见check_format_item_attr_bar_line
+        color (tuple | list, optional): Defaults to None.
+            详见check_format_item_attr_bar_line
+        fc_ec_flag (bool, optional): Defaults to False
+            If True, use fc and ec parameters
+                fc和ec设置为None时，bar不会自动变颜色
+            If False, use color parameter
         fc (tuple | list, optional): Defaults to None.
             详见check_format_item_attr_bar_line
         ec (tuple | list, optional): Defaults to None.
             详见check_format_item_attr_bar_line
         show_height (str, optional): Defaults to None.
-            详见show_bar_value的val_fmt参数说明 
-        mode (str, optional): 详见plot_axes. Defaults to 'show'.
+            详见show_bar_value的val_fmt参数说明
         xlabel (str | strings, optional): 详见plot_axes. Defaults to None.
         xticklabel (1D array | tuple | list, optional): Defaults to None.
             详见check_format_tick_lim
@@ -466,6 +472,7 @@ def plot_bar(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None, width=None,
         ylim (1D array | tuple | list, optional): Defaults to None.
             详见check_format_tick_lim
         title (str | strings, optional): 详见plot_axes. Defaults to None.
+        mode (str, optional): 详见plot_axes. Defaults to 'show'.
     """
     # check data
     y = check_format_y_bar_line(y)
@@ -480,8 +487,11 @@ def plot_bar(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None, width=None,
     x = check_format_x_bar_line(x, n_ax, x_lengths)
 
     label = check_format_item_attr_bar_line(label, n_ax, n_items)
-    fc = check_format_item_attr_bar_line(fc, n_ax, n_items)
-    ec = check_format_item_attr_bar_line(ec, n_ax, n_items)
+    if fc_ec_flag:
+        fc = check_format_item_attr_bar_line(fc, n_ax, n_items)
+        ec = check_format_item_attr_bar_line(ec, n_ax, n_items)
+    else:
+        color = check_format_item_attr_bar_line(color, n_ax, n_items)
 
     # prepare figure and axes
     fig, axes = plt.subplots(n_row, n_col, figsize=figsize)
@@ -499,10 +509,17 @@ def plot_bar(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None, width=None,
             width = auto_bar_width(x[ax_idx], n_items[ax_idx])
         offset = -(n_items[ax_idx] - 1) / 2
         for item_idx in range(n_items[ax_idx]):
-            rects = ax.bar(
-                x[ax_idx] + width*offset, ax_data[item_idx], width,
-                yerr=yerr[ax_idx][item_idx], label=label[ax_idx][item_idx],
-                fc=fc[ax_idx][item_idx], ec=ec[ax_idx][item_idx])
+            if fc_ec_flag:
+                rects = ax.bar(
+                    x[ax_idx] + width*offset, ax_data[item_idx], width,
+                    yerr=yerr[ax_idx][item_idx], label=label[ax_idx][item_idx],
+                    fc=fc[ax_idx][item_idx], ec=ec[ax_idx][item_idx])
+            else:
+                rects = ax.bar(
+                    x[ax_idx] + width*offset, ax_data[item_idx], width,
+                    yerr=yerr[ax_idx][item_idx], label=label[ax_idx][item_idx],
+                    color=color[ax_idx][item_idx])
+
             if show_height is not None:
                 show_bar_value(rects, show_height, ax)
             offset += 1
@@ -516,8 +533,8 @@ def plot_bar(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None, width=None,
 
 
 def plot_line(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None,
-              label=None, color=None, mode='show', xlabel=None, xtick=None,
-              xticklabel=None, rotate_xticklabel=False, ylabel=None, ylim=None, title=None):
+              label=None, color=None, xlabel=None, xtick=None, xticklabel=None,
+              rotate_xticklabel=False, ylabel=None, ylim=None, title=None, mode='show'):
     """
     基本上满足单纵轴所有常用line图的绘制了。
 
@@ -534,7 +551,6 @@ def plot_line(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None,
             详见check_format_item_attr_bar_line
         color (tuple | list, optional): Defaults to None.
             详见check_format_item_attr_bar_line
-        mode (str, optional): 详见plot_axes. Defaults to 'show'.
         xlabel (str | strings, optional): 详见plot_axes. Defaults to None.
         xtick (1D array | tuple | list, optional): Defaults to None.
             详见check_format_tick_lim
@@ -545,6 +561,7 @@ def plot_line(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None,
         ylim (1D array | tuple | list, optional): Defaults to None.
             详见check_format_tick_lim
         title (str | strings, optional): 详见plot_axes. Defaults to None.
+        mode (str, optional): 详见plot_axes. Defaults to 'show'.
     """
     # check data
     y = check_format_y_bar_line(y)
