@@ -175,3 +175,22 @@ def calc_coef_var(arr, axis=None, ddof=0):
     var = np.std(arr, axis, ddof=ddof) /\
         np.mean(np.abs(arr), axis)
     return var
+
+
+def calc_cqv(arr, axis=None):
+    """
+    Calculate coefficient of quartile variation
+    https://en.wikipedia.org/wiki/Quartile_coefficient_of_dispersion
+
+    Args:
+        arr (array-like):
+        axis (int, optional): Defaults to None.
+            calculate CQV along which axis
+
+    Returns:
+        [float]: coefficient of quartile variation
+    """
+    q1 = np.percentile(arr, 25, axis)
+    q3 = np.percentile(arr, 75, axis)
+    var = (q3 - q1) / (q3 + q1)
+    return var
