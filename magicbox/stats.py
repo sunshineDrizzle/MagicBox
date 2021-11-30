@@ -156,3 +156,22 @@ class EffectSize:
         # calculate the effect size
         d = (u1 - u2) / s
         return d
+
+
+def calc_coef_var(arr, axis=None, ddof=0):
+    """
+    改进后的变异系数(coefficient of variation, CV)计算方式
+    计算作为分母的均值之前先取绝对值（标准差还是基于原数据计算）
+
+    Args:
+        arr (array-like):
+        axis (int, optional): Defaults to None.
+            calculate CV along which axis
+        ddof (int, optional): Defaults to 0.
+
+    Returns:
+        [float]: coefficient of variation
+    """
+    var = np.std(arr, axis, ddof=ddof) /\
+        np.mean(np.abs(arr), axis)
+    return var
