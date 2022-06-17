@@ -123,6 +123,13 @@ class EffectSize:
     def cohen_d(self, sample1, sample2):
         """
         Calculate Cohen's d.
+        如果其中一个样本A是只包含一个0值的序列,
+            那就是计算另一个样本B相对于0的Cohen's d (对应单样本t检验)
+            如果此时另一个样本B实际上是两个配对样本的差,
+            那就是计算这两个配对样本之间的Cohen's d (对应配对t检验)
+                d = np.mean(B) / np.std(B, ddof=1)
+        其它情况就是计算这两个样本之间的Cohen's d (对应双样本t检验)
+            d = (np.mean(sample1) - np.mean(sample2)) / s_pool
 
         Parameters:
         ----------
@@ -139,6 +146,8 @@ class EffectSize:
         1. https://machinelearningmastery.com/effect-size-measures-in-python/
         2. https://www.statisticshowto.datasciencecentral.com/cohens-d/
         3. https://stackoverflow.com/questions/21532471/how-to-calculate-cohens-d-in-python
+        4. https://www.real-statistics.com/students-t-distribution/paired-sample-t-test/cohens-d-paired-samples/
+        5. https://www.sohu.com/a/168329069_489312
         """
         # calculate the size of samples
         n1, n2 = len(sample1), len(sample2)
