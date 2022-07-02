@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.stats.stats import sem, zscore
+from functools import partial
+from magicbox.stats import calc_coef_var
 
 
 def summary_across_col_by_mask(data, mask, values, metrics, tol_size=10, nan_mode=False,
@@ -51,7 +53,9 @@ def summary_across_col_by_mask(data, mask, values, metrics, tol_size=10, nan_mod
         metrics_str_flag = True
     metric2func = {
         'mean': np.mean,
+        'std': partial(np.std, ddof=1),
         'sem': sem,
+        'cv': partial(calc_coef_var, ddof=1),
         'sum': np.sum
     }
 
