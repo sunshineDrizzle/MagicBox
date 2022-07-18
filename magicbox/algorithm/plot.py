@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import r2_score
 from matplotlib import pyplot as plt, colors
 
@@ -644,6 +644,8 @@ def plot_polyfit(x, y, deg, scoring='r', scatter_plot=True,
         score = pearsonr(y, y_pred)
     elif scoring == 'r2_score':
         score = r2_score(y, y_pred)
+    elif scoring == 'spearmanr':
+        score = spearmanr(y, y_pred)
     else:
         raise ValueError("Not supported scoring:", scoring)
     print('\nscore:', score)
