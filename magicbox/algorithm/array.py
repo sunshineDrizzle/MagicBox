@@ -80,8 +80,12 @@ def summary_across_col_by_mask(data, mask, values, metrics, tol_size=10, nan_mod
                 if n_sample < tol_size:
                     print(f'Warning! The sample size of value-{v} in '
                           f'row-{row_names[row_idx]} is {n_sample}.')
-                for metric_idx, metric in enumerate(metrics):
-                    out_data[metric_idx][row_idx, v_idx] = metric2func[metric](samples)
+                if n_sample == 0:
+                    for metric_idx, metric in enumerate(metrics):
+                        out_data[metric_idx][row_idx, v_idx] = np.nan
+                else:
+                    for metric_idx, metric in enumerate(metrics):
+                        out_data[metric_idx][row_idx, v_idx] = metric2func[metric](samples)
     else:
         if zscore_flag:
             data = zscore(data, 1)
