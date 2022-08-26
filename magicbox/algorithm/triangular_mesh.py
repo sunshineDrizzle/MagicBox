@@ -355,8 +355,8 @@ def label_edge_detection(data, faces, edge_type="inner", neighbors=None):
 
     # look for edges
     for v_id in vertices:
-        neighbors_values = [data[_] for _ in neighbors[v_id]]
-        if min(neighbors_values) != max(neighbors_values):
+        neighbors_values = np.array([data[_] for _ in neighbors[v_id]])
+        if np.any(neighbors_values != data[v_id]):
             if edge_type in ("inner", "both", "split"):
                 inner_data[v_id] = data[v_id]
             if edge_type in ("outer", "both", "split"):
