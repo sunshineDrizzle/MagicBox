@@ -149,7 +149,7 @@ class CiftiReader(object):
             Only returned when 'structure' is not None and zeroize is False.
         """
 
-        _data = np.array(self.full_data.get_data())
+        _data = np.array(self.full_data.get_fdata())
         if structure is not None:
             brain_model = self.brain_models([structure])[0]
             offset = brain_model.index_offset
