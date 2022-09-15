@@ -17,6 +17,7 @@ def regress_nuisance(X, Y, remove_cols=None):
             Each column is a dependent variable.
         remove_cols (sequence, optional): Defaults to None.
             Nuisance regressors' column indices in X
+            If is None, all columns of X will be regarded as nuisance.
 
     Returns:
         Y_residual (2D array): residuals

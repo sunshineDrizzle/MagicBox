@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats.stats import sem, zscore
 from functools import partial
-from magicbox.stats import calc_coef_var
+from magicbox.stats.metric import calc_coef_var
 
 
 def summary_across_col_by_mask(data, mask, values, metrics, tol_size=10, nan_mode=False,
