@@ -203,3 +203,118 @@ def calc_cqv(arr, axis=None):
     q3 = np.percentile(arr, 75, axis)
     var = (q3 - q1) / (q3 + q1)
     return var
+
+
+def _overlap(c1, c2, index='dice'):
+    """
+    Calculate overlap between two collections
+
+    Parameters
+    ----------
+    c1, c2 : collection (list | tuple | set | 1-D array etc.)
+    index : string ('dice' | 'percent')
+        the index used to measure overlap
+
+    Return
+    ------
+    overlap : float
+        The overlap between c1 and c2
+    """
+    set1 = set(c1)
+    set2 = set(c2)
+    intersection_num = float(len(set1 & set2))
+    try:
+        if index == 'dice':
+            total_num = len(set1 | set2) + intersection_num
+            overlap = 2.0 * intersection_num / total_num
+        elif index == 'percent':
+            overlap = 1.0 * intersection_num / len(set1)
+        else:
+            raise Exception("Unsupported index:", index)
+    except ZeroDivisionError as e:
+        print(e)
+        overlap = np.nan
+    return overlap
+
+
+def calc_overlap(data1, data2, label1=None, label2=None, index='dice'):
+    """
+    Calculate overlap between two sets.
+    The sets are acquired from data1 and data2 respectively.
+
+    Parameters
+    ----------
+    data1, data2 : collection or numpy array
+        label1 is corresponding with data1
+        label2 is corresponding with data2
+    label1, label2 : None or labels
+        If label1 or label2 is None, the corresponding data is supposed to be
+            a collection of members such as vertices and voxels.
+        If label1 or label2 is a label, the corresponding data is always a
+            numpy array with same shape and meaning. And we will acquire set1
+            elements whose labels are equal to label1 from data1 and set2
+            elements whose labels are equal to label2 from data2.
+    index : string ('dice' | 'percent')
+        the index used to measure overlap
+
+    Return
+    ------
+    overlap : float
+        The overlap of data1 and data2
+    """
+    if label1 is not None:
+        positions1 = np.where(data1 == label1)
+        data1 = list(zip(*positions1))
+
+    if label2 is not None:
+        positions2 = np.where(data2 == label2)
+        data2 = list(zip(*positions2))
+
+    # calculate overlap
+    overlap = _overlap(data1, data2, index)
+
+    return overlap
+
+
+def loocv_overlap(X, prob, metric='dice'):
+    """
+    Calculate overlaps for leave-one-out cross validation.
+    Each sample has its own region of interest (ROI). For each iteration,
+    overlap between the ROI in the left sample and the ROI in remaining samples
+    will be calculated. The ROI in remaining samples is defined as below:
+        Calculate probability map for the remaining samples, regard locations
+        whose probability is suprathreshold as the ROI.
+
+    Parameters:
+    ----------
+    X[ndarray]: shape=(n_sample, n_location)
+        Its data type must be bool. Each row is a sample.
+        Each sample's region of interest consists of the locations with True values.
+    prob[float]: the threshold probability
+    metric[str]: string ('dice' | 'percent')
+        Specify a metric which is used to measure overlap.
+
+    Return:
+    ------
+    overlaps[ndarray]: shape=(n_sample,)
+    """
+    assert X.ndim == 2, 'The input X must be a 2D array!'
+    assert X.dtype == np.bool, "The input X's data type must be bool!"
+    n_samp, _ = X.shape
+
+    remain_idx_arr = np.ones((n_samp,), dtype=np.bool)
+    overlaps = np.zeros((n_samp,))
+    for left_idx in range(n_samp):
+        # get roi of the left sample
+        roi_left = np.where(X[left_idx])[0]
+
+        # get roi of the remaining samples
+        remain_idx_arr[left_idx] = False
+        prob_map = np.mean(X[remain_idx_arr], 0)
+        roi_remain = np.where(prob_map > prob)[0]
+        remain_idx_arr[left_idx] = True
+
+        # calculate overlap
+        overlaps[left_idx] = calc_overlap(roi_left, roi_remain, index=metric)
+
+    return overlaps
