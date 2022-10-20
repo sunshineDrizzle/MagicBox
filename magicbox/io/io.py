@@ -121,11 +121,48 @@ class CiftiReader(object):
             label_tables = []
         return label_tables
 
+    def get_stru_pos(self, structure):
+        """
+        For a certain brain structure:
+        1. Get its position in the cifti data:
+            offset, count
+        2. Get its position in the intact map:
+            map_shape, index2v
+
+        Args:
+            structure (str): brain structure
+                Can be found by self.brain_structures
+
+        Returns:
+            offset (int): data offset
+                Offset of the brain structure in the cifti data.
+            count (int): the number of data points
+                Data point count of the brain structure in the cifti data.
+            map_shape (tuple): the shape of the map
+                If brain model type is SURFACE, the shape is (n_vertex,).
+                If brain model type is VOXELS, the shape is (i_max, j_max, k_max).
+            index2v (list): index to vertex or voxel
+                index2v[cifti_data_index] == vertex number or voxel position
+        """
+        bm = self.brain_models([structure])[0]
+        offset, count = bm.index_offset, bm.index_count
+        if bm.model_type == 'CIFTI_MODEL_TYPE_SURFACE':
+            map_shape = (bm.surface_number_of_vertices,)
+            index2v = list(bm.vertex_indices)
+        elif bm.model_type == 'CIFTI_MODEL_TYPE_VOXELS':
+            # This function have not been verified visually.
+            map_shape = self.volume.volume_dimensions
+            index2v = list(bm.voxel_indices_ijk)
+        else:
+            raise RuntimeError(f'Not supported brain model: {bm.model_type}')
+
+        return offset, count, map_shape, index2v
+
     def get_data(self, structure=None, zeroize=False):
         """
         get data from cifti file
 
-        Parameters:
+        Parameters
         ----------
         structure: str
             One structure corresponds to one brain model.
@@ -134,56 +171,37 @@ class CiftiReader(object):
         zeroize: bool
             If true, get data after filling zeros for the missing vertices/voxels.
 
-        Return:
+        Return
         ------
         data: numpy array
-            If zeroize doesn't take effect, the data's shape is (n_map, n_index).
-            If zeroize takes effect and brain model type is SURFACE, the data's shape is (n_map, n_vertex).
-            If zeroize takes effect and brain model type is VOXELS, the data's shape is (n_map, i_max, j_max, k_max).
-        map_shape: tuple
-            the shape of the map.
-            If brain model type is SURFACE, the shape is (n_vertex,).
-            If brain model type is VOXELS, the shape is (i_max, j_max, k_max).
-            Only returned when 'structure' is not None and zeroize is False.
-        index2v: list
-            index2v[cifti_data_index] == vertex number or voxel position
-            Only returned when 'structure' is not None and zeroize is False.
+            If zeroize is False, the data's shape is (n_map, n_index).
+            If zeroize is True and brain model type is SURFACE,
+                the data's shape is (n_map, n_vertex).
+            If zeroize is True and brain model type is VOXELS,
+                the data's shape is (n_map, i_max, j_max, k_max).
         """
-
-        _data = np.array(self.full_data.get_fdata())
+        _data = self.full_data.get_fdata()
         if structure is not None:
-            brain_model = self.brain_models([structure])[0]
-            offset = brain_model.index_offset
-            count = brain_model.index_count
+            bm = self.brain_models([structure])[0]
+            offset, count, map_shape, index2v = self.get_stru_pos(structure)
+            _data = _data[:, offset:offset+count]
 
             if zeroize:
-                if brain_model.model_type == 'CIFTI_MODEL_TYPE_SURFACE':
-                    n_vtx = brain_model.surface_number_of_vertices
-                    data = np.zeros((_data.shape[0], n_vtx), _data.dtype)
-                    data[:, list(brain_model.vertex_indices)] = _data[:, offset:offset+count]
-                elif brain_model.model_type == 'CIFTI_MODEL_TYPE_VOXELS':
-                    # This function have not been verified visually.
-                    vol_shape = self.volume.volume_dimensions
-                    data_shape = (_data.shape[0],) + vol_shape
-                    data_ijk = np.array(list(brain_model.voxel_indices_ijk))
-                    data = np.zeros(data_shape, _data.dtype)
-                    data[:, data_ijk[:, 0], data_ijk[:, 1], data_ijk[:, 2]] = _data[:, offset:offset+count]
+                data_shape = (_data.shape[0],) + map_shape
+                data = np.zeros(data_shape, _data.dtype)
+                if bm.model_type == 'CIFTI_MODEL_TYPE_SURFACE':
+                    data[:, index2v] = _data
+                elif bm.model_type == 'CIFTI_MODEL_TYPE_VOXELS':
+                    index2v = np.array(index2v)
+                    data[:, index2v[:, 0], index2v[:, 1], index2v[:, 2]] = _data
                 else:
-                    raise RuntimeError("The function can't support the brain model: {}".format(brain_model.model_type))
-                return data
+                    raise RuntimeError(f'Not supported brain model: {bm.model_type}')
             else:
-                if brain_model.model_type == 'CIFTI_MODEL_TYPE_SURFACE':
-                    map_shape = (brain_model.surface_number_of_vertices,)
-                    index2v = list(brain_model.vertex_indices)
-                elif brain_model.model_type == 'CIFTI_MODEL_TYPE_VOXELS':
-                    # This function have not been verified visually.
-                    map_shape = self.volume.volume_dimensions
-                    index2v = list(brain_model.voxel_indices_ijk)
-                else:
-                    raise RuntimeError("The function can't support the brain model: {}".format(brain_model.model_type))
-                return _data[:, offset:offset+count], map_shape, index2v
+                data = _data
         else:
-            return _data
+            data = _data
+
+        return data
 
 
 def save2cifti(file_path, data, brain_models, map_names=None, volume=None, label_tables=None):
