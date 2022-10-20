@@ -69,16 +69,17 @@ class CiftiReader(object):
         if structures is not None:
             if not isinstance(structures, list):
                 raise TypeError("The parameter 'structures' must be a list")
-            brain_models = [brain_models[self.brain_structures.index(s)] for s in structures]
+            b_strus = [bm.brain_structure for bm in brain_models]
+            brain_models = [brain_models[b_strus.index(s)] for s in structures]
         return brain_models
 
-    def map_names(self, rows=None):
+    def map_names(self, map_indices=None):
         """
         get map names
 
         Parameters:
         ----------
-        rows: sequence of integer
+        map_indices: sequence of integer
             Specify which map names should be got.
             If None, get all map names
 
@@ -88,21 +89,21 @@ class CiftiReader(object):
         """
         named_maps = list(self.header.get_index_map(0).named_maps)
         if named_maps:
-            if rows is None:
-                map_names = [named_map.map_name for named_map in named_maps]
+            if map_indices is None:
+                map_names = [nm.map_name for nm in named_maps]
             else:
-                map_names = [named_maps[i].map_name for i in rows]
+                map_names = [named_maps[i].map_name for i in map_indices]
         else:
             map_names = []
         return map_names
 
-    def label_tables(self, rows=None):
+    def label_tables(self, map_indices=None):
         """
         get label tables
 
         Parameters:
         ----------
-        rows: sequence of integer
+        map_indices: sequence of integer
             Specify which label tables should be got.
             If None, get all label tables.
 
@@ -112,10 +113,10 @@ class CiftiReader(object):
         """
         named_maps = list(self.header.get_index_map(0).named_maps)
         if named_maps:
-            if rows is None:
-                label_tables = [named_map.label_table for named_map in named_maps]
+            if map_indices is None:
+                label_tables = [nm.label_table for nm in named_maps]
             else:
-                label_tables = [named_maps[i].label_table for i in rows]
+                label_tables = [named_maps[i].label_table for i in map_indices]
         else:
             label_tables = []
         return label_tables
@@ -136,16 +137,16 @@ class CiftiReader(object):
         Return:
         ------
         data: numpy array
-            If zeroize doesn't take effect, the data's shape is (map_num, index_num).
-            If zeroize takes effect and brain model type is SURFACE, the data's shape is (map_num, vertex_num).
-            If zeroize takes effect and brain model type is VOXELS, the data's shape is (map_num, i_max, j_max, k_max).
+            If zeroize doesn't take effect, the data's shape is (n_map, n_index).
+            If zeroize takes effect and brain model type is SURFACE, the data's shape is (n_map, n_vertex).
+            If zeroize takes effect and brain model type is VOXELS, the data's shape is (n_map, i_max, j_max, k_max).
         map_shape: tuple
             the shape of the map.
-            If brain model type is SURFACE, the shape is (vertex_num,).
+            If brain model type is SURFACE, the shape is (n_vertex,).
             If brain model type is VOXELS, the shape is (i_max, j_max, k_max).
             Only returned when 'structure' is not None and zeroize is False.
         index2v: list
-            index2v[cifti_data_index] == map_vertex/map_voxel
+            index2v[cifti_data_index] == vertex number or voxel position
             Only returned when 'structure' is not None and zeroize is False.
         """
 
@@ -162,7 +163,7 @@ class CiftiReader(object):
                     data[:, list(brain_model.vertex_indices)] = _data[:, offset:offset+count]
                 elif brain_model.model_type == 'CIFTI_MODEL_TYPE_VOXELS':
                     # This function have not been verified visually.
-                    vol_shape = self.header.get_index_map(1).volume.volume_dimensions
+                    vol_shape = self.volume.volume_dimensions
                     data_shape = (_data.shape[0],) + vol_shape
                     data_ijk = np.array(list(brain_model.voxel_indices_ijk))
                     data = np.zeros(data_shape, _data.dtype)
@@ -176,7 +177,7 @@ class CiftiReader(object):
                     index2v = list(brain_model.vertex_indices)
                 elif brain_model.model_type == 'CIFTI_MODEL_TYPE_VOXELS':
                     # This function have not been verified visually.
-                    map_shape = self.header.get_index_map(1).volume.volume_dimensions
+                    map_shape = self.volume.volume_dimensions
                     index2v = list(brain_model.voxel_indices_ijk)
                 else:
                     raise RuntimeError("The function can't support the brain model: {}".format(brain_model.model_type))
