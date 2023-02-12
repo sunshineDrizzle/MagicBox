@@ -1,7 +1,75 @@
 import numpy as np
+
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import r2_score
 from matplotlib import pyplot as plt, colors
+from magicbox.algo.tool import round_decimal
+
+
+class TickRefinery:
+    """
+    Refine xticks and yticks
+    """
+    def __init__(self, ax=None):
+        self.ax = plt.gca() if ax is None else ax
+
+    def set_xticks_as_limit(self, n_tick, ndigits):
+        """
+        以两端的x limits作为两个端点xticks
+
+        Args:
+            n_tick (int): xticks的数量，要大于等于2
+                np.linspace(limit0, limit1, n_tick, endpoint=True)
+            ndigits (int): the number of decimal digits
+                Only support positive integer at present
+
+        Returns:
+            xticks (1D array)
+        """
+        assert n_tick > 1
+        xlim = self.ax.get_xlim()
+        xticks = np.linspace(xlim[0], xlim[1], n_tick, endpoint=True)
+        for idx, xtick in enumerate(xticks):
+            if idx == 0:
+                round_type = 'floor'
+            elif idx == n_tick - 1:
+                round_type = 'ceil'
+            else:
+                round_type = 'half_up'
+            xticks[idx] = round_decimal(xtick, ndigits, round_type)
+        self.ax.set_xlim(xticks[0], xticks[-1])
+        self.ax.set_xticks(xticks)
+
+        return xticks
+
+    def set_yticks_as_limit(self, n_tick, ndigits):
+        """
+        以两端的y limits作为两个端点yticks
+
+        Args:
+            n_tick (int): yticks的数量，要大于等于2
+                np.linspace(limit0, limit1, n_tick, endpoint=True)
+            ndigits (int): the number of decimal digits
+                Only support positive integer at present
+
+        Returns:
+            yticks (1D array)
+        """
+        assert n_tick > 1
+        ylim = self.ax.get_ylim()
+        yticks = np.linspace(ylim[0], ylim[1], n_tick, endpoint=True)
+        for idx, ytick in enumerate(yticks):
+            if idx == 0:
+                round_type = 'floor'
+            elif idx == n_tick - 1:
+                round_type = 'ceil'
+            else:
+                round_type = 'half_up'
+            yticks[idx] = round_decimal(ytick, ndigits, round_type)
+        self.ax.set_ylim(yticks[0], yticks[-1])
+        self.ax.set_yticks(yticks)
+
+        return yticks
 
 
 def show_bar_value(rects, val_fmt='', ax=None):
