@@ -1,121 +1,6 @@
 import numpy as np
 
-from statsmodels.formula.api import ols
-from statsmodels.stats.anova import anova_lm, AnovaRM
-
-
-class ANOVA:
-    """
-    Methods:
-    -------
-    eta_squared, omega_squared:
-        As a Psychologist most of the journals we publish in requires to report effect sizes.
-        Common software, such as, SPSS have eta squared as output.
-        However, eta squared is an overestimation of the effect.
-        To get a less biased effect size measure we can use omega squared.
-        The two methods adds eta squared and omega squared to the DataFrame that contains the ANOVA table.
-
-    References:
-    ----------
-    1. http://www.pybloggers.com/2016/03/three-ways-to-do-a-two-way-anova-with-python/
-    2. https://pythonfordatascience.org/anova-2-way-n-way/
-    3. https://www.marsja.se/four-ways-to-conduct-one-way-anovas-using-python/
-    4. http://www.pybloggers.com/2018/10/repeated-measures-anova-in-python-using-statsmodels/
-    5. https://www.marsja.se/repeated-measures-anova-in-python-using-statsmodels/
-    """
-    def one_way(self, data, dep_var, factor):
-        """
-        one-way ANOVA
-
-        Parameters:
-        ----------
-        data: DataFrame
-            Contains at least 2 columns that are 'dependent variable' and 'factor' respectively.
-        dep_var: str
-            Name of the 'dependent variable' column.
-        factor: str
-            Name of the 'factor' column.
-
-        Return:
-        ------
-        aov_table: DataFrame
-            ANOVA table
-        """
-        formula = '{} ~ {}'.format(dep_var, factor)
-        print('formula:', formula)
-        model = ols(formula, data).fit()
-        aov_table = anova_lm(model, typ=2)
-        self.eta_squared(aov_table)
-        self.omega_squared(aov_table)
-
-        return aov_table
-
-    def two_way(self, data, dep_var, factor1, factor2):
-        """
-        two-way ANOVA
-
-        Parameters:
-        ----------
-        data: DataFrame
-            Contains at least 3 columns that are 'dependent variable', 'factor1', and 'factor2' respectively.
-        dep_var: str
-            Name of the 'dependent variable' column.
-        factor1: str
-            Name of the 'factor1' column.
-        factor2: str
-            Name of the 'factor2' column.
-
-        Return:
-        ------
-        aov_table: DataFrame
-            ANOVA table
-        """
-        formula = '{0} ~ C({1}) + C({2}) + C({1}):C({2})'.format(dep_var, factor1, factor2)
-        print('formula:', formula)
-        model = ols(formula, data).fit()
-        aov_table = anova_lm(model, typ=2)
-        self.eta_squared(aov_table)
-        self.omega_squared(aov_table)
-
-        return aov_table
-
-    def rm(self, data, dep_var, subject, within, aggregate_func=None):
-        """
-        Repeated Measures ANOVA
-
-        Parameters:
-        ----------
-        data: DataFrame
-            Contains at least 3 columns that are 'dependent variable', 'subject', and 'factor' respectively.
-        dep_var: str
-            Name of the 'dependent variable' column.
-        subject: str
-            Name of the 'subject' column. (subject identifier)
-        within: a list of strings
-            Names of the at least one 'factor' columns.
-
-        Return:
-        ------
-        aov_table: DataFrame
-            ANOVA table
-        """
-        aov_rm = AnovaRM(data, dep_var, subject, within, aggregate_func=aggregate_func)
-        aov_table = aov_rm.fit().anova_table
-
-        return aov_table
-
-    @staticmethod
-    def eta_squared(aov):
-        aov['eta_sq'] = 'NaN'
-        aov['eta_sq'] = aov[:-1]['sum_sq'] / sum(aov['sum_sq'])
-        return aov
-
-    @staticmethod
-    def omega_squared(aov):
-        mse = aov['sum_sq'][-1] / aov['df'][-1]
-        aov['omega_sq'] = 'NaN'
-        aov['omega_sq'] = (aov[:-1]['sum_sq'] - (aov[:-1]['df'] * mse)) / (sum(aov['sum_sq']) + mse)
-        return aov
+from scipy.spatial.distance import cdist, pdist
 
 
 class EffectSize:
@@ -167,6 +52,7 @@ class EffectSize:
         return d
 
 
+# >>>variation
 def calc_coef_var(arr, axis=None, ddof=0):
     """
     改进后的变异系数(coefficient of variation, CV)计算方式
@@ -203,8 +89,10 @@ def calc_cqv(arr, axis=None):
     q3 = np.percentile(arr, 75, axis)
     var = (q3 - q1) / (q3 + q1)
     return var
+# variation<<<
 
 
+# >>>overlap
 def _overlap(c1, c2, index='dice'):
     """
     Calculate overlap between two collections
@@ -318,3 +206,167 @@ def loocv_overlap(X, prob, metric='dice'):
         overlaps[left_idx] = calc_overlap(roi_left, roi_remain, index=metric)
 
     return overlaps
+# overlap<<<
+
+
+# >>>cluster
+def elbow_score(X, labels, metric='euclidean', type=('inner', 'standard')):
+    """
+    calculate elbow score for a partition specified by labels
+    https://en.wikipedia.org/wiki/Elbow_method_(clustering)
+
+    :param X: array, shape = (n_samples, n_features)
+        a feature array
+    :param labels: array, shape = (n_samples,)
+        Predicted labels for each sample.
+    :param metric: string
+        Specify how to calculate distance between samples in a feature array.
+        Options: 'euclidean', 'correlation'
+    :param type: tuple of two strings
+        Options:
+        ('inner', 'standard') - Implement Wk in (Tibshirani et al., 2001b)
+        ('inner', 'centroid') - For each cluster, calculate the metric between samples within it
+                                with the cluster's centroid. Finally, average all samples.
+        ('inner', 'pairwise') - For each cluster, calculate the metric pairwise among samples within it.
+                                Finally, average all samples.
+        ('inter', 'centroid') - Calculate the metric between cluster centroids with their centroid.
+                                Finally, average all clusters.
+        ('inter', 'pairwise') - Calculate the metric pairwise among cluster centroids.
+                                Finally, average all clusters.
+
+    :return: score:
+        elbow score of the partition
+    """
+    if type == ('inner', 'standard'):
+        score = 0
+        for label in set(labels):
+            sub_samples = np.atleast_2d(X[labels == label])
+            dists = cdist(sub_samples, sub_samples, metric=metric)
+            tmp_score = np.sum(dists) / (2.0 * sub_samples.shape[0])
+            score += tmp_score
+    elif type == ('inner', 'centroid'):
+        # https://stackoverflow.com/questions/19197715/scikit-learn-k-means-elbow-criterion
+        # formula-1 in (Goutte, Toft et al. 1999 - NeuroImage)
+        sub_scores = []
+        for label in set(labels):
+            sub_samples = np.atleast_2d(X[labels == label])
+            sub_samples_centroid = np.atleast_2d(np.mean(sub_samples, 0))
+            tmp_scores = cdist(sub_samples_centroid, sub_samples, metric=metric)[0]
+            sub_scores.extend(tmp_scores)
+        score = np.mean(sub_scores)
+    elif type == ('inner', 'pairwise'):
+        sub_scores = []
+        for label in set(labels):
+            sub_samples = np.atleast_2d(X[labels == label])
+            sub_scores.extend(pdist(sub_samples, metric=metric))
+        score = np.mean(sub_scores)
+    elif type == ('inter', 'centroid'):
+        # adapted from formula-2 in (Goutte, Toft et al. 1999 - NeuroImage)
+        sub_centroids = []
+        for label in set(labels):
+            sub_samples = np.atleast_2d(X[labels == label])
+            sub_centroids.append(np.mean(sub_samples, 0))
+        centroid = np.atleast_2d(np.mean(sub_centroids, 0))
+        tmp_scores = cdist(centroid, np.array(sub_centroids), metric=metric)[0]
+        score = np.mean(tmp_scores)
+    elif type == ('inter', 'pairwise'):
+        sub_centroids = []
+        for label in set(labels):
+            sub_samples = np.atleast_2d(X[labels == label])
+            sub_centroids.append(np.mean(sub_samples, 0))
+        sub_centroids = np.array(sub_centroids)
+        if sub_centroids.shape[0] == 1:
+            sub_centroids = np.r_[sub_centroids, sub_centroids]
+        score = np.mean(pdist(sub_centroids, metric=metric))
+    else:
+        raise TypeError('Type-{} is not supported at present.'.format(type))
+
+    return score
+
+
+def gap_statistic(X, cluster_nums, ref_num=10, cluster_method=None):
+    """
+    do clustering with gap statistic assessment according to (Tibshirani et al., 2001b)
+    https://blog.csdn.net/baidu_17640849/article/details/70769555
+    https://datasciencelab.wordpress.com/tag/gap-statistic/
+    https://github.com/milesgranger/gap_statistic
+
+    :param X: array, shape = (n_samples, n_features)
+        a feature array
+    :param cluster_nums: a iterator of integers
+        Each integer is the number of clusters to try on the data.
+    :param ref_num: integer
+        The number of random reference data sets used as inertia reference to actual data.
+    :param cluster_method: callable
+        The cluster method to do clustering on the feature array. And the method returns
+        labels_list (cluster results of each cluster_num in cluster_nums).
+        If is None, a default K-means method will be used.
+
+    :return: labels_list: list
+        cluster results of each cluster_num in cluster_nums
+    :return: Wks: array, shape = (len(cluster_nums),)
+        within-cluster dispersion of each cluster_num clustering on the feature array X
+    :return: Wks_refs_log_mean: array, shape = (len(cluster_nums),)
+        mean within-cluster dispersion of each cluster_num clustering on ref_num reference data sets
+    :return: gaps: array, shape = (len(cluster_nums),)
+        Wks_refs_log_mean - np.log(Wks)
+    :return: s: array, shape = (len(cluster_nums),)
+        I think elements in s can be regarded as standard errors of gaps.
+    :return: k_selected: integer
+        cluster k_selected clusters on X may be the best choice
+    """
+    if cluster_method is None:
+        def k_means(data, cluster_nums):
+            """
+            http://scikit-learn.org/stable/modules/clustering.html#k-means
+            """
+            from sklearn.cluster import KMeans
+
+            labels_list = []
+            for cluster_num in cluster_nums:
+                kmeans = KMeans(cluster_num, random_state=0, n_init=10).fit(data)
+                labels_list.append(kmeans.labels_ + 1)
+                print('KMeans finished: {}'.format(cluster_num))
+            return labels_list
+
+        cluster_method = k_means
+
+    print('Start: calculate W\u2096s')
+    Wks = []
+    labels_list = cluster_method(X, cluster_nums)
+    for labels in labels_list:
+        Wks.append(elbow_score(X, labels))
+    Wks = np.array(Wks)
+    Wks_log = np.log(Wks)
+    print('Finish: calculate W\u2096s')
+
+    print("Start: calculate references' W\u2096s")
+    Wks_refs_log = []
+    minimums = np.atleast_2d(np.min(X, axis=0))
+    maximums = np.atleast_2d(np.max(X, axis=0))
+    bounding_box = np.r_[minimums, maximums]
+    for i in range(ref_num):
+        X_ref = uniform_box_sampling(X.shape[0], bounding_box)
+        labels_list_ref = cluster_method(X_ref, cluster_nums)
+        Wks_ref_log = []
+        for labels in labels_list_ref:
+            Wks_ref_log.append(np.log(elbow_score(X_ref, labels)))
+        Wks_refs_log.append(Wks_ref_log)
+        print('Finish reference: {}/{}'.format(i+1, ref_num))
+    print("Finish: calculate references' W\u2096s")
+
+    print('Start: calculate gaps')
+    Wks_refs_log = np.array(Wks_refs_log)
+    Wks_refs_log_mean = np.mean(Wks_refs_log, axis=0)
+    Wks_refs_log_std = np.std(Wks_refs_log, axis=0)
+    gaps = Wks_refs_log_mean - Wks_log
+    print('Finish: calculate gaps')
+
+    print('Start: select optimal k')
+    s = Wks_refs_log_std * np.sqrt(1 + 1.0 / ref_num)
+    idx_selected = np.where(gaps[:-1] >= gaps[1:] - s[1:])[0][0]
+    k_selected = cluster_nums[idx_selected]
+    print('Finish: select optimal k')
+
+    return labels_list, Wks, Wks_refs_log_mean, gaps, s, k_selected
+# cluster<<<
