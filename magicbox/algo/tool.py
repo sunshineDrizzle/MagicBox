@@ -84,3 +84,71 @@ def round_decimal(number, ndigits, round_type='half_up'):
     number = round(number, ndigits)
 
     return number
+
+
+def smooth_1d(x, window='hanning', window_len=3):
+    """
+    Smooth the 1D data using a window with requested size.
+
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing flipped copies of the signal
+    (with the half of window size) in both ends so that transient parts are
+    minimized in the begining and end part of the output signal.
+
+    Args:
+        x (1d array): the input signal
+        window (str | 1d array-like): the type of window
+            If it's a string, it's one of 'flat', 'hanning',
+            'hamming', 'bartlett', 'blackman'. 'flat' window
+            will produce a moving average smoothing.
+            If it's a 1d array, it's a window in itself.
+            'window_len' will be ignored.
+        window_len (int): the dimension of the smoothing window;
+            should be an odd integer
+
+    Returns:
+        y (1d array): the smoothed signal
+
+    Examples:
+        t=linspace(-2,2,0.1)
+        x=sin(t)+randn(len(t))*0.1
+        y=smooth(x)
+
+    See also:
+        numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman,
+        numpy.convolve scipy.signal.lfilter
+
+    References:
+        1. https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html#smoothing-of-a-1d-signal
+        2. https://www.delftstack.com/howto/python/smooth-data-in-python/
+    """
+    x = np.asarray(x)
+    if x.ndim != 1:
+        raise ValueError("smooth_1d only accepts 1-dimensional arrays.")
+
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be longer than window.")
+
+    if isinstance(window, str):
+        if window == 'flat':
+            w = np.ones(window_len)
+        elif window in ['hanning', 'hamming', 'bartlett', 'blackman']:
+            w = eval('np.'+window+'(window_len)')
+        else:
+            raise ValueError("Window is one of flat, hanning, hamming,"
+                             " bartlett, and blackman.")
+    else:
+        w = np.asarray(window)
+        assert w.ndim == 1, "Window must be a 1d array."
+        window_len = w.size
+
+    assert window_len > 2, "Window length must be larger than 2."
+    assert window_len % 2 == 1, "Window length must be an odd integer."
+
+    half_len = int((window_len - 1) / 2)
+    flip_idx1 = half_len - 0
+    flip_idx2 = -2 - half_len
+    s = np.r_[x[flip_idx1:0:-1], x, x[-2:flip_idx2:-1]]
+    y = np.convolve(w/w.sum(), s, mode='valid')
+
+    return y
