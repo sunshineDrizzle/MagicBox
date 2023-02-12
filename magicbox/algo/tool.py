@@ -1,4 +1,7 @@
+import decimal
 import numpy as np
+
+from decimal import Decimal
 
 
 # --------sampling--------
@@ -51,3 +54,33 @@ def intersect(arr, mask, label=None, substitution=np.nan):
     new_arr = arr.copy()
     new_arr[np.logical_not(mask_idx_mat)] = substitution
     return new_arr
+
+
+def round_decimal(number, ndigits, round_type='half_up'):
+    """
+    Round a number to a given precision in decimal digits.
+
+    Args:
+        number (float): a float number
+        ndigits (int): the number of decimal digits
+            Only support positive integer at present
+        round_type (str): Default is half_up
+            half_up, floor, ceil
+
+    Return:
+        number (Decimal): a Decimal number after rounding
+    """
+    assert ndigits > 0 and isinstance(ndigits, int)
+    number = Decimal(str(number))
+    ctx = decimal.getcontext()
+    if round_type == 'half_up':
+        ctx.rounding = decimal.ROUND_HALF_UP
+    elif round_type == 'floor':
+        ctx.rounding = decimal.ROUND_FLOOR
+    elif round_type == 'ceil':
+        ctx.rounding = decimal.ROUND_CEILING
+    else:
+        raise ValueError('Not supported round type:', round_type)
+    number = round(number, ndigits)
+
+    return number
