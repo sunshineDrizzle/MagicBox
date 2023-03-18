@@ -5,6 +5,34 @@ from functools import partial
 from magicbox.algo.metric import calc_coef_var
 
 
+def print_ps(ps, p_names, p_type):
+    """
+    把显著和不显著的p值（连带对应的名字）分开显示
+
+    Args:
+        ps (sequence): p values
+        p_names (sequence): p names
+        p_type (str): p type
+    """
+    sig_msg = []
+    ns_msg = []
+    for p, p_name in zip(ps, p_names):
+        msg = f'{p_name}({p})'
+        if p < 0.05:
+            sig_msg.append(msg)
+        else:
+            ns_msg.append(msg)
+    sig_msg = ', '.join(sig_msg)
+    ns_msg = ', '.join(ns_msg)
+
+    print(f'>>>{p_type}')
+    print('---significant---')
+    print(sig_msg)
+    print('---not significant---')
+    print(ns_msg)
+    print(f'{p_type}<<<')
+
+
 def summary_across_col_by_mask(data, mask, values, metrics, tol_size=10, nan_mode=False,
                                row_names=None, zscore_flag=False, out_dict=False):
     """
