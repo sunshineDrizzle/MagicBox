@@ -676,7 +676,7 @@ def plot_line(y, n_row=1, n_col=1, figsize=None, yerr=None, x=None,
 
 def plot_polyfit(x, y, deg, scoring='r', scatter_plot=True,
                  color=None, label=None, s=None, c=None, marker=None,
-                 n_sample=100, ax=None):
+                 n_sample=100, ax=None, return_y_pred=False):
     """
     Parameters
     ----------
@@ -731,7 +731,10 @@ def plot_polyfit(x, y, deg, scoring='r', scatter_plot=True,
     y_plot = polynomial(x_plot)
     ax.plot(x_plot, y_plot, color=color, label=label)
 
-    return ax
+    if return_y_pred:
+        return ax, y_pred
+    else:
+        return ax
 
 
 class VlineMover(object):
