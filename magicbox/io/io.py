@@ -278,34 +278,76 @@ def save2cifti(file_path, data, brain_models, map_names=None, volume=None, label
     cifti2.save(img, file_path)
 
 
-class GiftiReader(object):
+class GiftiReader:
 
     def __init__(self, file_path):
         self._fpath = file_path
         self.full_data = nib.load(file_path)
 
+    def agg_data(self, intent_code=None):
+        """
+        Refer to:
+        https://nipy.org/nibabel/reference/nibabel.gifti.html#nibabel.gifti.gifti.GiftiImage.agg_data
+
+        Aggregate GIFTI data arrays into an ndarray or tuple of ndarray
+
+        In the general case, the numpy data array is extracted from each
+        GiftiDataArray object and returned in a tuple, in the order they
+        are found in the GIFTI image.
+
+        If all GiftiDataArray s have intent of 2001 (NIFTI_INTENT_TIME_SERIES),
+        then the data arrays are concatenated as columns, producing a
+        vertex-by-time array. If an intent_code is passed, data arrays are
+        filtered by the selected intents, before being aggregated.
+        This may be useful for images containing several intents, or ensuring
+        an expected data type in an image of uncertain provenance.
+        If intent_code is a tuple, then a tuple will be returned with the
+        result of agg_data for each element, in order. This may be useful for
+        ensuring that expected data arrives in a consistent order.
+
+        Args:
+            intent_code (string, integer or tuple, optional): Defaults to None.
+                Code(s) specifying nifti intent
+
+        Returns:
+            tuple of ndarrays or ndarray: If the input is a tuple, the returned
+                tuple will match the order.
+        """
+        return self.full_data.agg_data(intent_code)
+
     @property
     def coords(self):
-        if self._fpath.endswith('.surf.gii'):
-            return self.full_data.get_arrays_from_intent('NIFTI_INTENT_POINTSET')[0].data
-            # return self.full_data.darrays[0].data
-        else:
-            return None
+        return self.agg_data('NIFTI_INTENT_POINTSET')
 
     @property
     def faces(self):
-        if self._fpath.endswith('.surf.gii'):
-            return self.full_data.get_arrays_from_intent('NIFTI_INTENT_TRIANGLE')[0].data
-            # return self.full_data.darrays[1].data
-        else:
-            return None
+        return self.agg_data('NIFTI_INTENT_TRIANGLE')
 
-    @property
-    def scalar_data(self):
-        if self._fpath.endswith('.surf.gii'):
-            return None
-        else:
-            return self.full_data.darrays[0].data
+    def get_intent_codes(self):
+        """
+        Refer to:
+        https://nipy.org/nibabel/reference/nibabel.volumeutils.html#recoder
+
+        Get intent codes available in this data
+
+        Returns:
+            dict: map canonical codes to their own code or aliases
+        """
+        alias2code = nib.nifti1.intent_codes.code
+        assert alias2code == nib.nifti1.intent_codes.field1
+        assert alias2code == nib.nifti1.intent_codes.__dict__['code']
+
+        intent_codes = []
+        code2alias = {}
+        for darr in self.full_data.darrays:
+            intent_code = darr.intent
+            intent_codes.append(intent_code)
+            code2alias[intent_code] = []
+        for k, v in alias2code.items():
+            if v in intent_codes:
+                code2alias[v].append(k)
+
+        return code2alias
 
 
 def save2nifti(fpath, data, affine=None, header=None):
