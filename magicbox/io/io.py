@@ -6,10 +6,11 @@ from nibabel.cifti2 import cifti2
 from collections import OrderedDict
 
 
-class CiftiReader(object):
+class CiftiReader:
 
     def __init__(self, file_path):
-        self.full_data = cifti2.load(file_path)
+        self._fpath = file_path
+        self.full_data = nib.load(file_path)
 
     @property
     def header(self):
@@ -17,7 +18,8 @@ class CiftiReader(object):
 
     @property
     def brain_structures(self):
-        return [_.brain_structure for _ in self.header.get_index_map(1).brain_models]
+        return [i.brain_structure for i in
+                self.header.get_index_map(1).brain_models]
 
     @property
     def label_info(self):
@@ -33,7 +35,8 @@ class CiftiReader(object):
                 label[list]: a list of label names
                 rgba[ndarray]: shape=(n_label, 4)
                     The four elements in the second dimension are
-                    red, green, blue, and alpha color components for label (between 0 and 1).
+                    red, green, blue, and alpha color components for label
+                    (between 0 and 1).
         """
         label_info = []
         for named_map in self.header.get_index_map(0).named_maps:
