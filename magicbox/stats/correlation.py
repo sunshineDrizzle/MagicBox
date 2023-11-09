@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.stats import pearsonr
-from outlier import outlier_iqr
+from .outlier import outlier_iqr
 
 
 def calc_pearson_r_p(data1, data2, nan_mode=False, iqr_coef=None):
