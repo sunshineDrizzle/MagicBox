@@ -3,7 +3,7 @@ from scipy.stats import pearsonr
 from .outlier import outlier_iqr
 
 
-def calc_pearson_r_p(data1, data2, nan_mode=False, iqr_coef=None):
+def calc_pearson_r_p(data1, data2, nan_mode=False, iqr_coef=None, return_sig=False):
     """
     data1的形状是m1 x n, data2的形状是m2 x n
     用data1的每一行和data2的每一行做皮尔逊相关，得到：
@@ -13,6 +13,10 @@ def calc_pearson_r_p(data1, data2, nan_mode=False, iqr_coef=None):
         每两行做相关之前会去掉值为NAN的样本点
     if iqr_coef is not None:
         每两行做相关之前会去掉值在iqr_coef倍IQR以外的样本点
+    if return_sig is True:
+        Return significantly correlated x and y in a dict,
+        key is a tuple: (m1_idx, m2_idx);
+        value is also a tuple: (x, y).
     """
     data1 = np.asarray(data1)
     data2 = np.asarray(data2)
@@ -23,6 +27,7 @@ def calc_pearson_r_p(data1, data2, nan_mode=False, iqr_coef=None):
 
     r_arr = np.zeros((m1, m2), np.float64)
     p_arr = np.zeros((m1, m2), np.float64)
+    sig_dict = {}
     if nan_mode:
         non_nan_arr1 = ~np.isnan(data1)
         non_nan_arr2 = ~np.isnan(data2)
@@ -49,6 +54,10 @@ def calc_pearson_r_p(data1, data2, nan_mode=False, iqr_coef=None):
                             r, p = pearsonr(x, y)
                 r_arr[i, j] = r
                 p_arr[i, j] = p
+
+                if return_sig and not np.isnan(r):
+                    if p < 0.05:
+                        sig_dict[(i, j)] = (x, y)
     else:
         if iqr_coef is not None:
             outlier_arr1 = outlier_iqr(data1, iqr_coef, 1)
@@ -67,4 +76,11 @@ def calc_pearson_r_p(data1, data2, nan_mode=False, iqr_coef=None):
                 r_arr[i, j] = r
                 p_arr[i, j] = p
 
-    return r_arr, p_arr
+                if return_sig and not np.isnan(r):
+                    if p < 0.05:
+                        sig_dict[(i, j)] = (x, y)
+
+    if return_sig:
+        return r_arr, p_arr, sig_dict
+    else:
+        return r_arr, p_arr
