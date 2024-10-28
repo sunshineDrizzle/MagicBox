@@ -1,3 +1,6 @@
+import warnings
+
+
 def _filling(string, fillers_list, fillers, strings):
     """
     do filling
@@ -49,3 +52,31 @@ def get_strings_by_filling(string, fillers_list):
     _filling(string, fillers_list, [], strings)
 
     return strings
+
+
+def excel_col_label2number(col_lbl):
+    """
+    Convert Excel column label to number
+    For example:
+    'A' -> 1
+    'B' -> 2
+    'AA' -> 27
+    'BB' -> 54
+    Analogous to 10 in the decimalism, here is 26.
+
+    Args:
+        col_lbl (str): Excel column label
+
+    Returns:
+        int: Excel column number
+    """
+    if col_lbl != col_lbl.upper():
+        warnings.warn(f"All letters of '{col_lbl}' will "
+                      'be converted to uppercase at first.')
+        col_lbl = col_lbl.upper()
+
+    index = 0
+    onset = ord('A') - 1
+    for c in col_lbl:
+        index = 26 * index + ord(c) - onset
+    return index
